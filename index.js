@@ -1,4 +1,3 @@
-\
 const args = process.argv;
 const fs = require('fs');
 const path = require('path');
